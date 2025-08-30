@@ -288,16 +288,37 @@ def run_simulation(
     months = len(average_balance)
     years = np.arange((current_age_years) * 12, months + ((current_age_years) * 12)) / 12
 
-    fig2, ax3 = plt.subplots(figsize=(12, 6))
-    min_length = min(len(years), len(average_balance))
-    years_clipped = years[:min_length]
-    average_balance_clipped = average_balance[:min_length]
+    # --- Safe wrapper fix: align all series to same length ---
+    min_len = min(
+        len(years),
+        len(average_balance),
+        len(percentile_5),
+        len(percentile_95),
+        len(percentile_15),
+        len(percentile_85),
+        len(percentile_25),
+        len(percentile_75),
+        len(percentile_35),
+        len(percentile_65)
+    )
 
-    ax3.plot(years_clipped, average_balance_clipped, label='Median Balance', color='blue')
-    ax3.fill_between(years_clipped, percentile_5[:min_length], percentile_95[:min_length], color='whitesmoke', alpha=0.5, label='5th-95th Percentile Range')
-    ax3.fill_between(years_clipped, percentile_15[:min_length], percentile_85[:min_length], color='lightgray', alpha=0.5, label='15th-85th Percentile Range')
-    ax3.fill_between(years_clipped, percentile_25[:min_length], percentile_75[:min_length], color='gray', alpha=0.5, label='25th-75th Percentile Range')
-    ax3.fill_between(years_clipped, percentile_35[:min_length], percentile_65[:min_length], color='dimgrey', alpha=0.5, label='35th-65th Percentile Range')
+    years = years[:min_len]
+    average_balance = average_balance.iloc[:min_len]
+    percentile_5 = percentile_5.iloc[:min_len]
+    percentile_95 = percentile_95.iloc[:min_len]
+    percentile_15 = percentile_15.iloc[:min_len]
+    percentile_85 = percentile_85.iloc[:min_len]
+    percentile_25 = percentile_25.iloc[:min_len]
+    percentile_75 = percentile_75.iloc[:min_len]
+    percentile_35 = percentile_35.iloc[:min_len]
+    percentile_65 = percentile_65.iloc[:min_len]
+
+    fig2, ax3 = plt.subplots(figsize=(12, 6))
+    ax3.plot(years, average_balance, label='Median Balance', color='blue')
+    ax3.fill_between(years, percentile_5, percentile_95, color='whitesmoke', alpha=0.5, label='5th-95th Percentile Range')
+    ax3.fill_between(years, percentile_15, percentile_85, color='lightgray', alpha=0.5, label='15th-85th Percentile Range')
+    ax3.fill_between(years, percentile_25, percentile_75, color='gray', alpha=0.5, label='25th-75th Percentile Range')
+    ax3.fill_between(years, percentile_35, percentile_65, color='dimgrey', alpha=0.5, label='35th-65th Percentile Range')
 
     ax3.set_xlabel('Years')
     ax3.set_ylabel('Balance')
@@ -339,19 +360,20 @@ def run_simulation(
     fig2.align_xlabels()
 
 
-    # Zoomed-in Percentile Plot
-    filtered_years = years[(years >= 58) & (years <= 85)]
-    filtered_average_balance = average_balance[(years >= 58) & (years <= 85)]
-    filtered_percentile_15 = percentile_15[(years >= 58) & (years <= 85)]
-    filtered_percentile_85 = percentile_85[(years >= 58) & (years <= 85)]
-    filtered_percentile_25 = percentile_25[(years >= 58) & (years <= 85)]
-    filtered_percentile_75 = percentile_75[(years >= 58) & (years <= 85)]
-    filtered_percentile_35 = percentile_35[(years >= 58) & (years <= 85)]
-    filtered_percentile_65 = percentile_65[(years >= 58) & (years <= 85)]
+    # --- Zoomed-in Percentile Plot with safe wrapper ---
+    mask = (years >= 58) & (years <= 85)
+
+    filtered_years = years[mask]
+    filtered_average_balance = average_balance[mask]
+    filtered_percentile_15 = percentile_15[mask]
+    filtered_percentile_85 = percentile_85[mask]
+    filtered_percentile_25 = percentile_25[mask]
+    filtered_percentile_75 = percentile_75[mask]
+    filtered_percentile_35 = percentile_35[mask]
+    filtered_percentile_65 = percentile_65[mask]
 
     fig3, ax5 = plt.subplots(figsize=(12, 6))
     ax5.plot(filtered_years, filtered_average_balance, label='Median Balance', color='blue')
-    #ax5.fill_between(filtered_years, filtered_percentile_5, filtered_percentile_95, color='whitesmoke', alpha=0.5, label='5th-95th Percentile Range')
     ax5.fill_between(filtered_years, filtered_percentile_15, filtered_percentile_85, color='lightgray', alpha=0.5, label='15th-85th Percentile Range')
     ax5.fill_between(filtered_years, filtered_percentile_25, filtered_percentile_75, color='gray', alpha=0.5, label='25th-75th Percentile Range')
     ax5.fill_between(filtered_years, filtered_percentile_35, filtered_percentile_65, color='dimgrey', alpha=0.5, label='35th-65th Percentile Range')
