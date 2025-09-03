@@ -1,9 +1,11 @@
 import streamlit as st
-import matplotlib.pyplot as plt
-from structured_simulation import run_simulation
 import pandas as pd
 from datetime import datetime
 import numpy as np
+import matplotlib.pyplot as plt
+from structured_simulation import run_simulation
+
+
 
 st.title("Retirement Monte Carlo Simulation")
 
@@ -139,51 +141,21 @@ if st.button("Run Simulation"):
     for key, value in retirement_stats.items():
         st.write(f"{key}: ${value:,.0f}")
 
-    # Display Plots
-    st.subheader("Simulation Plots")
-    if show_box_plot:
-        st.pyplot(results["plots"]["box_plot"])
-    if show_percentile_plot:
-        st.pyplot(results["plots"]["percentile_plot"])
+    # --- Plots ---
+    st.subheader("Ending Portfolio Distribution")
+    st.plotly_chart(results["plots"]["box_plot"], use_container_width=True)
 
+    st.subheader("Portfolio Value Percentiles Over Time")
+    st.plotly_chart(results["plots"]["percentile_plot"], use_container_width=True)
 
-    # Regenerate zoomed plot with selected age range
-    average_balance = results["dataframes"]["investment_values_df"].median(axis=1)
-    percentile_15 = results["dataframes"]["investment_values_df"].quantile(0.15, axis=1)
-    percentile_85 = results["dataframes"]["investment_values_df"].quantile(0.85, axis=1)
-    percentile_25 = results["dataframes"]["investment_values_df"].quantile(0.25, axis=1)
-    percentile_75 = results["dataframes"]["investment_values_df"].quantile(0.75, axis=1)
-    percentile_35 = results["dataframes"]["investment_values_df"].quantile(0.35, axis=1)
-    percentile_65 = results["dataframes"]["investment_values_df"].quantile(0.65, axis=1)
+    st.subheader("Zoomed Portfolio Value (First 600 Months)")
+    st.plotly_chart(results["plots"]["zoomed_percentile_plot"], use_container_width=True)
 
-    today = datetime.today()
-    j_birthday = datetime(1982, 8, 15) # Assuming a fixed birthday for calculation
-    current_age = today - j_birthday
-    current_age_years = current_age.days / 365.25
-    months = len(average_balance)
-    years = np.arange((current_age_years) * 12, months + ((current_age_years) * 12)) / 12
-
-    filtered_years = years[(years >= zoom_start_age) & (years <= zoom_end_age)]
-    filtered_average_balance = average_balance[(years >= zoom_start_age) & (years <= zoom_end_age)]
-    filtered_percentile_15 = percentile_15[(years >= zoom_start_age) & (years <= zoom_end_age)]
-    filtered_percentile_85 = percentile_85[(years >= zoom_start_age) & (years <= zoom_end_age)]
-    filtered_percentile_25 = percentile_25[(years >= zoom_start_age) & (years <= zoom_end_age)]
-    filtered_percentile_75 = percentile_75[(years >= zoom_start_age) & (years <= zoom_end_age)]
-    filtered_percentile_35 = percentile_35[(years >= zoom_start_age) & (years <= zoom_end_age)]
-    filtered_percentile_65 = percentile_65[(years >= zoom_start_age) & (years <= zoom_end_age)]
-
-
-    fig3, ax5 = plt.subplots(figsize=(12, 6))
-    ax5.plot(filtered_years, filtered_average_balance, label='Median Balance', color='blue')
-    ax5.fill_between(filtered_years, filtered_percentile_15, filtered_percentile_85, color='lightgray', alpha=0.5, label='15th-85th Percentile Range')
-    ax5.fill_between(filtered_years, filtered_percentile_25, filtered_percentile_75, color='gray', alpha=0.5, label='25th-75th Percentile Range')
-    ax5.fill_between(filtered_years, filtered_percentile_35, filtered_percentile_65, color='dimgrey', alpha=0.5, label='35th-65th Percentile Range')
-    ax5.set_xlabel('Years')
-    ax5.set_ylabel('Balance')
-    ax5.set_title(f'Monte Carlo Simulation of Investment Account Growth (Zoomed In: Ages {zoom_start_age}-{zoom_end_age})')
-    ax5.legend()
-    ax5.grid(True)
-    st.pyplot(fig3)
+    # --- Data Preview ---
+    with st.expander("View Sample Data"):
+        st.write(results["dataframes"]["investment_values_df"].head())
+        st.write("Percentiles:")
+        st.write(results["dataframes"]["percentiles"].head())
 
 
     # Add download buttons for dataframes
