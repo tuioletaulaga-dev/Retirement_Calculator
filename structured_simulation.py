@@ -166,33 +166,53 @@ def run_simulation(
     investment_values[0] = current_retirement_balance
     dynamic_withdrawals_values = np.zeros((max_investment_horizon, trials))
 
-    periodic_contribution = (((current_base_salary * (1 + vip_bonus_rate)) * (retirement_contribution_rate + company_contribution_rate + company_match)) / 12) + 2
+    # periodic contribution (monthly) from salary + employer contributions/match
+    periodic_contribution = (
+        ((current_base_salary * (1 + vip_bonus_rate))
+         * (retirement_contribution_rate + company_contribution_rate + company_match))
+        / 12.0
+    )
 
 
-    for t in range(1, max_investment_horizon):
+    # Determine safe iteration length T (months)
+    T = int(min(
+        max_investment_horizon,
+        len(random_portfolio_ret),
+        len(final_ss_monthly_income),
+        len(monthly_withdrawals_final),
+        len(dynamic_increased_withdrawal_coefficient),
+        len(dynamic_decreased_withdrawal_coefficient)
+    ))
+    
+    # Prepare arrays sized to T
+    investment_values = np.zeros((T, trials))
+    dynamic_withdrawals_values = np.zeros((T, trials))
+    investment_values[0] = current_retirement_balance  # seed initial balance
+    
+    for t in range(1, T):
         e_inheritance_variable = 1 if (t / 12) >= (e_age_of_inheritance - current_age_years) and (t-1)/12 < (e_age_of_inheritance - current_age_years) else 0
         j_inheritance_variable = 1 if (t / 12) >= (j_age_of_inheritance - current_age_years) and (t-1)/12 < (j_age_of_inheritance - current_age_years) else 0
         contribution_variable = 0 if (t / 12) >= (desired_ret_age - current_age_years) else 1
-
+    
         prev_investment_value = investment_values[t-1]
-        contribution = periodic_contribution * contribution_variable * ((1+(annual_raise_assumption/12))**(t-1))
-        e_inheritance_value = e_inheritance_variable * (e_inheritance_pv * ((1+(annual_inflation/12))**(t-1)))
-        j_inheritance_value = j_inheritance_variable * (j_inheritance_pv * ((1+(annual_inflation/12))**(t-1)))
-
-        # Ensure indices are within bounds
-        if t < len(random_portfolio_ret) and t < len(final_ss_monthly_income) and t < len(monthly_withdrawals_final) and t < len(dynamic_increased_withdrawal_coefficient) and t < len(dynamic_decreased_withdrawal_coefficient):
-            portfolio_return = random_portfolio_ret[t]
-            ss_income_t = final_ss_monthly_income[t]
-            withdrawal_amount = monthly_withdrawals_final[t] * (1 + (dynamic_withdrawal_increase * dynamic_increased_withdrawal_coefficient[t])) * (1 + (dynamic_withdrawal_decrease * dynamic_decreased_withdrawal_coefficient[t]))
-
-            investment_values[t] = (prev_investment_value + contribution + e_inheritance_value + j_inheritance_value) * (1 + portfolio_return) + ss_income_t - withdrawal_amount
-            dynamic_withdrawals_values[t] = withdrawal_amount
-        else:
-             # Handle cases where indices are out of bounds, e.g., break or use last valid value
-            break
-
+        contribution = periodic_contribution * contribution_variable * ((1 + (annual_raise_assumption / 12)) ** (t-1))
+        e_inheritance_value = e_inheritance_variable * (e_inheritance_pv * ((1 + (annual_inflation / 12)) ** (t-1)))
+        j_inheritance_value = j_inheritance_variable * (j_inheritance_pv * ((1 + (annual_inflation / 12)) ** (t-1)))
+    
+        # use values directly (we already sized arrays to T)
+        portfolio_return = random_portfolio_ret[t]
+        ss_income_t = final_ss_monthly_income[t]
+        withdrawal_amount = monthly_withdrawals_final[t] \
+                            * (1 + (dynamic_withdrawal_increase * dynamic_increased_withdrawal_coefficient[t])) \
+                            * (1 + (dynamic_withdrawal_decrease * dynamic_decreased_withdrawal_coefficient[t]))
+    
+        investment_values[t] = (prev_investment_value + contribution + e_inheritance_value + j_inheritance_value) * (1 + portfolio_return) + ss_income_t - withdrawal_amount
+        dynamic_withdrawals_values[t] = withdrawal_amount
+    
+    # convert to DataFrames once loop finishes
     df_investment_values = pd.DataFrame(investment_values)
     df_dynamic_withdrawals = pd.DataFrame(dynamic_withdrawals_values)
+
 
 
     # Dataframe Stats
@@ -275,6 +295,7 @@ def run_simulation(
 
 
     # Percentile Plot
+    # Compute percentile series
     average_balance = df_investment_values.median(axis=1)
     percentile_5 = df_investment_values.quantile(0.05, axis=1)
     percentile_95 = df_investment_values.quantile(0.95, axis=1)
@@ -284,11 +305,14 @@ def run_simulation(
     percentile_65 = df_investment_values.quantile(0.65, axis=1)
     percentile_15 = df_investment_values.quantile(0.15, axis=1)
     percentile_85 = df_investment_values.quantile(0.85, axis=1)
-
+    
+    # Build a years axis that aligns with the number of months we actually simulated
     months = len(average_balance)
-    years = np.arange((current_age_years) * 12, months + ((current_age_years) * 12)) / 12
-
-    # --- Safe wrapper fix: align all series to same length ---
+    start_month = int(np.floor(current_age_years * 12))
+    months_range = np.arange(start_month, start_month + months)
+    years = months_range / 12.0  # float years (e.g., 42.5)
+    
+    # Align all series to the same minimum length (defensive)
     min_len = min(
         len(years),
         len(average_balance),
@@ -301,8 +325,10 @@ def run_simulation(
         len(percentile_35),
         len(percentile_65)
     )
-
+    
+    # Clip each to min_len
     years = years[:min_len]
+    years_clipped = years  # now safely defined and iterable
     average_balance = average_balance.iloc[:min_len]
     percentile_5 = percentile_5.iloc[:min_len]
     percentile_95 = percentile_95.iloc[:min_len]
@@ -312,6 +338,7 @@ def run_simulation(
     percentile_75 = percentile_75.iloc[:min_len]
     percentile_35 = percentile_35.iloc[:min_len]
     percentile_65 = percentile_65.iloc[:min_len]
+
 
     fig2, ax3 = plt.subplots(figsize=(12, 6))
     ax3.plot(years, average_balance, label='Median Balance', color='blue')
