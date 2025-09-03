@@ -126,14 +126,8 @@ if st.button("Run Simulation"):
     st.subheader("End of Life Statistics")
     end_of_life_stats = results["end_of_life_stats"]
     for key, value in end_of_life_stats.items():
-        if isinstance(value, (int, float)):
-            if "Percent" in key:
-                 st.write(f"{key}: {value:.2%}")
-            else:
-                st.write(f"{key}: ${value:,.0f}")
-        else:
-            st.write(f"{key}: {value}")
-
+        st.write(f"{key}: ${value:,.0f}")
+        
 
     # Display Retirement Stats
     st.subheader("Retirement Statistics (at Desired Retirement Age)")
