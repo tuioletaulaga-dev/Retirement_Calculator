@@ -3,6 +3,7 @@ import numpy as np
 from datetime import datetime
 import matplotlib.pyplot as plt
 import seaborn as sns
+import plotly.graph_objects as go
 
 def create_ss_benefits_df():
     """Creates a DataFrame for Social Security benefits."""
@@ -244,54 +245,21 @@ def run_simulation(
     df_every_30_rows = filtered2_df.iloc[::30, :]
     df_clipped = df_every_30_rows.T
 
-    fig1, ax1 = plt.subplots(figsize=(20, 12))
-    sns.boxplot(data=df_clipped, whis=.5, showfliers=False, ax=ax1)
-    ax1.set_xlabel('Time Period')
-    ax1.set_ylabel('Account Value')
-    ax1.set_title('Probabilistic Growth of Account Value Over Time')
 
-    ax2 = ax1.twinx()
+    fig1 = go.Figure()
+    for col in df_clipped.columns:
+        fig1.add_trace(go.Box(
+            y=df_clipped[col],
+            name=str(col),
+            boxpoints=False,
+            whiskerwidth=0.5
+        ))
+    fig1.update_layout(
+        title='Probabilistic Growth of Account Value Over Time',
+        xaxis_title='Time Period',
+        yaxis_title='Account Value'
+    )
 
-    x = np.arange(0, max_investment_horizon, 30) # Use all relevant periods
-    y = []
-    for i in x:
-        if (i / 12) < (desired_ret_age - current_age_years):
-            y_value = 0
-        elif (i / 12) < (age_house_paidoff - current_age_years):
-            y_value = (desired_after_tax_monthly_income / (1 - retirement_tax_rate)) * ((1 + (annual_inflation / 12)) ** i)
-        else:
-            y_value = ((desired_after_tax_monthly_income - current_mortgage) / (1 - retirement_tax_rate)) * ((1 + (annual_inflation / 12)) ** i)
-        y.append(y_value)
-
-    x2 = np.arange(0, max_investment_horizon, 30) # Use all relevant periods
-    y2 = []
-    date_of_initial_ss_payment = datetime(int(1982 + age_of_first_ss), 8, 15)
-    months_til_first_ss_check = ((date_of_initial_ss_payment.year - today.year) * 12) + (date_of_initial_ss_payment.month - today.month)
-
-    for i in x2:
-         if i < months_til_first_ss_check:
-             y2_value=0
-         else:
-             y2_value = initial_ss_pymt * ((1+(annual_inflation/12))**(i-months_til_first_ss_check))
-         y2.append(y2_value)
-
-
-    x3 = x
-    y3 = [a - b for a, b in zip(y, y2)]
-
-    x4 = x
-    y4 = [(i * 12) / .05 for i in y] # Annualize required income for 5% rule
-
-    line4, = ax1.plot(x4, y4, 'blue', marker='o', linestyle='-', label='Minimum Required Balance (5% Rule)')
-    line1, = ax2.plot(x, y, color='red', marker='o', linestyle='-', label='Required Income (gross)')
-    line2, = ax2.plot(x2, y2, color='yellow', marker='o', linestyle='-', label='SS Income')
-    line3, = ax2.plot(x3, y3, 'green', marker='o', linestyle='-', label='Withdrawals Net of SS')
-
-    lines = [line1, line2, line3, line4]
-    labels = [line.get_label() for line in lines]
-    ax1.legend(lines, labels, loc='upper right')
-    ax2.set_ylabel('Monthly Withdrawals')
-    fig1.align_xlabels()
 
 
     # Percentile Plot
@@ -340,51 +308,23 @@ def run_simulation(
     percentile_65 = percentile_65.iloc[:min_len]
 
 
-    fig2, ax3 = plt.subplots(figsize=(12, 6))
-    ax3.plot(years, average_balance, label='Median Balance', color='blue')
-    ax3.fill_between(years, percentile_5, percentile_95, color='whitesmoke', alpha=0.5, label='5th-95th Percentile Range')
-    ax3.fill_between(years, percentile_15, percentile_85, color='lightgray', alpha=0.5, label='15th-85th Percentile Range')
-    ax3.fill_between(years, percentile_25, percentile_75, color='gray', alpha=0.5, label='25th-75th Percentile Range')
-    ax3.fill_between(years, percentile_35, percentile_65, color='dimgrey', alpha=0.5, label='35th-65th Percentile Range')
 
-    ax3.set_xlabel('Years')
-    ax3.set_ylabel('Balance')
-    ax3.set_title('Monte Carlo Simulation of Investment Account Growth')
-    ax3.legend()
-    ax3.grid(True)
+    fig2 = go.Figure()
+    fig2.add_trace(go.Scatter(x=years, y=average_balance, mode='lines', name='Median Balance', line=dict(color='blue')))
+    fig2.add_trace(go.Scatter(x=years, y=percentile_5, mode='lines', name='5th Percentile', line=dict(color='lightgray')))
+    fig2.add_trace(go.Scatter(x=years, y=percentile_95, mode='lines', name='95th Percentile', line=dict(color='lightgray')))
+    # Add fill between for percentiles
+    fig2.add_trace(go.Scatter(
+        x=np.concatenate([years, years[::-1]]),
+        y=np.concatenate([percentile_95, percentile_5[::-1]]),
+        fill='toself',
+        fillcolor='whitesmoke',
+        line=dict(color='whitesmoke'),
+        name='5th-95th Percentile Range',
+        showlegend=True
+    ))
+    fig2.update_layout(title='Monte Carlo Simulation of Investment Account Growth', xaxis_title='Years', yaxis_title='Balance')
 
-    ax4 = ax3.twinx()
-
-    y_annual = []
-    for i in years_clipped:
-        if i < desired_ret_age:
-            y_value_annual = 0
-        elif i < age_house_paidoff:
-            y_value_annual = ((desired_after_tax_monthly_income * 12) / (1 - retirement_tax_rate)) * ((1 + annual_inflation) ** (i - current_age_years))
-        else:
-            y_value_annual = (((desired_after_tax_monthly_income - current_mortgage) * 12) / (1 - retirement_tax_rate)) * ((1 + annual_inflation) ** (i - current_age_years))
-        y_annual.append(y_value_annual)
-
-    y2_annual = []
-    for i in years_clipped:
-        if i < age_of_first_ss:
-            y2_value_annual = 0
-        else:
-            y2_value_annual = (initial_ss_pymt * 12) * ((1 + annual_inflation) ** (i - current_age_years))
-        y2_annual.append(y2_value_annual)
-
-
-    y3_annual = [a - b for a, b in zip(y_annual, y2_annual)]
-
-    line1_annual, = ax4.plot(years_clipped, y_annual, color='red', linestyle='-', label='Required Income (gross)')
-    line2_annual, = ax4.plot(years_clipped, y2_annual, color='yellow', linestyle='-', label='SS Income')
-    line3_annual, = ax4.plot(years_clipped, y3_annual, 'green', linestyle='-', label='Withdrawals Net of SS')
-
-    lines_annual = [line1_annual, line2_annual, line3_annual]
-    labels_annual = [line.get_label() for line in lines_annual]
-    ax4.legend(lines_annual, labels_annual, loc='upper right')
-    ax4.set_ylabel('Annual Withdrawals')
-    fig2.align_xlabels()
 
 
     # --- Zoomed-in Percentile Plot with safe wrapper ---
@@ -399,16 +339,20 @@ def run_simulation(
     filtered_percentile_35 = percentile_35[mask]
     filtered_percentile_65 = percentile_65[mask]
 
-    fig3, ax5 = plt.subplots(figsize=(12, 6))
-    ax5.plot(filtered_years, filtered_average_balance, label='Median Balance', color='blue')
-    ax5.fill_between(filtered_years, filtered_percentile_15, filtered_percentile_85, color='lightgray', alpha=0.5, label='15th-85th Percentile Range')
-    ax5.fill_between(filtered_years, filtered_percentile_25, filtered_percentile_75, color='gray', alpha=0.5, label='25th-75th Percentile Range')
-    ax5.fill_between(filtered_years, filtered_percentile_35, filtered_percentile_65, color='dimgrey', alpha=0.5, label='35th-65th Percentile Range')
-    ax5.set_xlabel('Years')
-    ax5.set_ylabel('Balance')
-    ax5.set_title('Monte Carlo Simulation of Investment Account Growth (Zoomed In)')
-    ax5.legend()
-    ax5.grid(True)
+
+    fig3 = go.Figure()
+    fig3.add_trace(go.Scatter(x=filtered_years, y=filtered_average_balance, mode='lines', name='Median Balance', line=dict(color='blue')))
+    fig3.add_trace(go.Scatter(
+        x=np.concatenate([filtered_years, filtered_years[::-1]]),
+        y=np.concatenate([filtered_percentile_85, filtered_percentile_15[::-1]]),
+        fill='toself',
+        fillcolor='lightgray',
+        line=dict(color='lightgray'),
+        name='15th-85th Percentile Range',
+        showlegend=True
+    ))
+    fig3.update_layout(title='Monte Carlo Simulation of Investment Account Growth (Zoomed In)', xaxis_title='Years', yaxis_title='Balance')
+
 
 
     # Return outputs
