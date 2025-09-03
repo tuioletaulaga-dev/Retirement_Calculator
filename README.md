@@ -9,4 +9,4 @@ This Streamlit app runs a Monte Carlo simulation for retirement planning.
 ## How to run locally
 ```bash
 pip install -r requirements.txt
-streamlit app.py
+streamlit run app.py
