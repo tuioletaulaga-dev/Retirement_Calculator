@@ -149,7 +149,7 @@ if st.button("Run Simulation"):
     with st.expander("View Sample Data"):
         st.write(results["dataframes"]["investment_values_df"].head())
         st.write("Percentiles:")
-        st.write(results["dataframes"]["percentiles"].head())
+        st.write(results["dataframes"]["dynamic_withdrawals_df"].head())
 
 
     # Add download buttons for dataframes
