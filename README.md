@@ -1,2 +1,12 @@
 # Retirement_Calculator
-Required documents for online retirement calculator and forecasting tool
+# Retirement Monte Carlo Simulation
+
+This Streamlit app runs a Monte Carlo simulation for retirement planning.
+- Adjustable inputs: contributions, years, returns, volatility
+- Interactive Plotly charts
+- Distribution and percentile analysis
+
+## How to run locally
+```bash
+pip install -r requirements.txt
+streamlit run Streamlit_App_Retirement.py
