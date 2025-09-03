@@ -1,8 +1,6 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime
-import matplotlib.pyplot as plt
-import seaborn as sns
 import plotly.graph_objects as go
 
 def create_ss_benefits_df():
